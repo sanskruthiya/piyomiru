@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぴよログ可視化ツール</title>
+    <link rel="stylesheet" href="app/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐣 ぴよミル</h1><h2>ぴよログ可視化ツール</h2>
+            <p>ぴよログから出力したログテキストを貼り付けて、睡眠パターンを可視化します</p>
+        </header>
+
+        <section class="instructions-section">
+            <div class="instructions-header">
+                <h4 class="instructions-toggle">📱 ぴよログからのログ取得手順 <span class="toggle-icon">▼</span></h4>
+            </div>
+            <div class="instructions-steps" id="instructionsSteps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>メニュー</strong>を開く
+                    </div>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>記録の出力</strong>を選択
+                    </div>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>テキストでのエクスポート</strong>を選択
+                    </div>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>1か月分のエクスポート（テキスト）</strong>をコピー
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <main>
+            <section class="input-section">
+                <div class="period-selector">
+                    <label for="periodSelect">対象期間：</label>
+                    <select id="periodSelect" class="period-dropdown">
+                        <option value="1" selected>1ヶ月間</option>
+                        <option value="2">2ヶ月間</option>
+                        <option value="3">3ヶ月間</option>
+                        <option value="4">4ヶ月間</option>
+                        <option value="5">5ヶ月間</option>
+                        <option value="6">6ヶ月間</option>
+                    </select>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <div class="tab-buttons" id="tabButtons">
+                            <!-- JavaScriptで動的に生成 -->
+                        </div>
+                    </div>
+                    
+                    <div class="tabs-content" id="tabsContent">
+                        <!-- JavaScriptで動的に生成 -->
+                    </div>
+                </div>
+                <button id="analyzeBtn" class="analyze-btn">
+                    📊 パターンを可視化する
+                </button>
+            </section>
+
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>📅 対象期間</h3>
+                        <p id="analysisDate">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>⏰ 1回の平均睡眠時間</h3>
+                        <p id="avgSleep">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>📊 1日の平均睡眠時間</h3>
+                        <p id="dailyAvgSleep">-</p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div class="chart-title-section">
+                            <h2>睡眠時間帯チャート</h2>
+                            <p class="chart-description">各日の睡眠時間帯を時間軸で表示します</p>
+                        </div>
+                        <button class="download-btn" id="downloadTimeChart" title="チャートを画像としてダウンロード">
+                            画像ダウンロード
+                        </button>
+                    </div>
+                    <canvas id="sleepTimeChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div class="chart-title-section">
+                            <h2>日別睡眠時間チャート</h2>
+                        </div>
+                        <button class="download-btn" id="downloadSleepChart" title="チャートを画像としてダウンロード">
+                            画像ダウンロード
+                        </button>
+                    </div>
+                    <canvas id="sleepChart"></canvas>
+                </div>
+            </section>
+
+            <section class="error-section" id="errorSection" style="display: none;">
+                <div class="error-message">
+                    <h3>⚠️ エラーが発生しました</h3>
+                    <p id="errorText"></p>
+                    <p>正しいぴよログの形式でテキストを入力してください。</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-links">
+                        <a href="https://github.com/sanskruthiya/piyomiru" target="_blank" rel="noopener noreferrer" class="footer-link">
+                            <svg class="link-icon github-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                            GitHub
+                        </a>
+                        <a href="https://form.run/@party--1681740493" target="_blank" rel="noopener noreferrer" class="footer-link">
+                            <span class="link-icon">📝</span>
+                            お問い合わせ
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <p class="copyright">© 2025 co-place</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app/script.js"></script>
+</body>
+</html>
