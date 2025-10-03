@@ -25,6 +25,36 @@ class PiyoLogAnalyzer {
         downloadSleepChartBtn.addEventListener('click', () => this.downloadChart('sleepChart'));
     }
 
+    /**
+     * 日付の妥当性をチェックする
+     * @param {number} year - 年
+     * @param {number} month - 月（1-12）
+     * @param {number} day - 日
+     * @returns {boolean} - 有効な日付かどうか
+     */
+    validateDate(year, month, day) {
+        // 基本的な範囲チェック
+        if (year < 1900 || year > 2100) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        
+        // Dateオブジェクトを使用した厳密なチェック
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && 
+               date.getMonth() === month - 1 && 
+               date.getDate() === day;
+    }
+
+    /**
+     * 時刻の妥当性をチェックする
+     * @param {number} hour - 時（0-23）
+     * @param {number} minute - 分（0-59）
+     * @returns {boolean} - 有効な時刻かどうか
+     */
+    validateTime(hour, minute) {
+        return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+    }
+
     initializeTabs() {
         // 初期タブを生成
         this.generateTabs();
@@ -73,7 +103,17 @@ class PiyoLogAnalyzer {
             // 日付行を検出
             const dateMatch = line.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})\([^)]+\)/);
             if (dateMatch) {
-                currentDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+                const year = parseInt(dateMatch[1]);
+                const month = parseInt(dateMatch[2]);
+                const day = parseInt(dateMatch[3]);
+                
+                // 日付の妥当性をチェック
+                if (this.validateDate(year, month, day)) {
+                    currentDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                } else {
+                    console.warn(`無効な日付をスキップしました: ${year}/${month}/${day}`);
+                    currentDate = null; // 無効な日付の場合はnullに設定
+                }
                 continue;
             }
             
@@ -96,6 +136,12 @@ class PiyoLogAnalyzer {
                 const hour = parseInt(timeMatch[1]);
                 const minute = parseInt(timeMatch[2]);
                 const activity = timeMatch[3];
+                
+                // 時刻の妥当性をチェック
+                if (!this.validateTime(hour, minute)) {
+                    console.warn(`無効な時刻をスキップしました: ${hour}:${minute}`);
+                    continue;
+                }
                 
                 // 「寝る」を検出
                 if (activity.includes('寝る')) {
@@ -147,16 +193,51 @@ class PiyoLogAnalyzer {
     }
 
     calculateSleepDuration(sleepStart, wakeEnd) {
-        const sleepDateTime = new Date(`${sleepStart.date}T${sleepStart.hour.toString().padStart(2, '0')}:${sleepStart.minute.toString().padStart(2, '0')}:00`);
-        let wakeDateTime = new Date(`${wakeEnd.date}T${wakeEnd.hour.toString().padStart(2, '0')}:${wakeEnd.minute.toString().padStart(2, '0')}:00`);
-        
-        // 日をまたぐ場合の処理
-        if (wakeDateTime <= sleepDateTime) {
-            wakeDateTime.setDate(wakeDateTime.getDate() + 1);
+        try {
+            // より安全な日付処理
+            const sleepDate = new Date(sleepStart.date);
+            const wakeDate = new Date(wakeEnd.date);
+            
+            // 日付の妥当性をチェック
+            if (isNaN(sleepDate.getTime()) || isNaN(wakeDate.getTime())) {
+                console.warn('無効な日付が検出されました:', sleepStart.date, wakeEnd.date);
+                return 0;
+            }
+            
+            // 時刻を設定（setHoursを使用してより安全に）
+            const sleepDateTime = new Date(sleepDate);
+            sleepDateTime.setHours(sleepStart.hour, sleepStart.minute, 0, 0);
+            
+            let wakeDateTime = new Date(wakeDate);
+            wakeDateTime.setHours(wakeEnd.hour, wakeEnd.minute, 0, 0);
+            
+            // 日をまたぐ場合の処理（より安全な方法）
+            if (wakeDateTime <= sleepDateTime) {
+                // 24時間を加算（ミリ秒単位で安全に計算）
+                wakeDateTime = new Date(wakeDateTime.getTime() + 24 * 60 * 60 * 1000);
+            }
+            
+            const diffMs = wakeDateTime - sleepDateTime;
+            const durationMinutes = Math.round(diffMs / (1000 * 60));
+            
+            // 異常に長い睡眠時間（24時間以上）をチェック
+            if (durationMinutes > 24 * 60) {
+                console.warn('異常に長い睡眠時間が検出されました:', durationMinutes, '分');
+                return 0;
+            }
+            
+            // 負の値をチェック
+            if (durationMinutes < 0) {
+                console.warn('負の睡眠時間が検出されました:', durationMinutes, '分');
+                return 0;
+            }
+            
+            return durationMinutes;
+            
+        } catch (error) {
+            console.error('睡眠時間計算エラー:', error, sleepStart, wakeEnd);
+            return 0;
         }
-        
-        const diffMs = wakeDateTime - sleepDateTime;
-        return Math.round(diffMs / (1000 * 60)); // 分単位
     }
 
     displayResults() {
@@ -917,6 +998,25 @@ class PiyoLogAnalyzer {
         document.getElementById('errorSection').scrollIntoView({ 
             behavior: 'smooth' 
         });
+    }
+
+    /**
+     * 詳細なエラーメッセージを表示する
+     * @param {string} errorType - エラーの種類
+     * @param {Object} details - エラーの詳細情報
+     */
+    showDetailedError(errorType, details = {}) {
+        const errorMessages = {
+            'invalid_date': `無効な日付が検出されました: ${details.date || '不明'}`,
+            'invalid_time': `無効な時刻が検出されました: ${details.time || '不明'}`,
+            'missing_sleep_data': `${details.tabName || 'タブ'}に睡眠データが見つかりません`,
+            'calculation_error': '睡眠時間の計算中にエラーが発生しました',
+            'parse_error': 'ログデータの解析中にエラーが発生しました'
+        };
+        
+        const message = errorMessages[errorType] || `エラーが発生しました: ${errorType}`;
+        console.error(`詳細エラー [${errorType}]:`, details);
+        this.showError(message);
     }
 
     hideError() {

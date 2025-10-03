@@ -476,6 +476,55 @@ textarea:focus {
     margin-bottom: 10px;
 }
 
+/* プライバシー通知 */
+.privacy-notice {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px 25px;
+    border-radius: 15px;
+    margin: 30px 0;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid #4fd1c5;
+}
+
+.privacy-notice h3 {
+    color: #2d3748;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.privacy-notice p {
+    color: #4a5568;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+.privacy-notice ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.privacy-notice li {
+    padding: 6px 0;
+    color: #4a5568;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.privacy-notice li:before {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 /* フッター */
 footer {
     color: rgba(255, 255, 255, 0.9);
