@@ -671,7 +671,7 @@ class PiyoLogAnalyzer {
                     y: {
                         title: {
                             display: true,
-                            text: '日付'
+                            text: '日数'
                         }
                     }
                 }
@@ -789,7 +789,7 @@ class PiyoLogAnalyzer {
                         reverse: true, // 上が1日目、下が最終日
                         title: {
                             display: true,
-                            text: '日付'
+                            text: '日数'
                         }
                     }
                 },
