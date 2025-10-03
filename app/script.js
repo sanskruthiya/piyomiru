@@ -373,54 +373,59 @@ class PiyoLogAnalyzer {
     parseAllTabs() {
         const allTabsData = [];
         const errors = [];
+        let combinedLogText = '';
+        let hasValidTab = false;
         
+        // 1. 全タブのテキストを結合
         for (const tab of this.tabs) {
             const textarea = document.getElementById(`logText${tab.id}`);
-            const statusDiv = document.getElementById(`tabStatus${tab.id}`);
-            
             if (!textarea) continue;
             
-            const logText = textarea.value.trim();
-            
-            // 空のタブはスキップ
+            let logText = textarea.value.trim();
             if (!logText) {
                 this.updateTabStatus(tab.id, '', 'empty');
                 continue;
             }
             
-            try {
-                // 個別タブのデータを解析
-                const tabData = this.parseLogText(logText);
-                
-                if (tabData.length === 0) {
-                    this.updateTabStatus(tab.id, '睡眠データが見つかりませんでした', 'error');
-                    errors.push(`${tab.name}: 睡眠データが見つかりませんでした`);
-                    continue;
-                }
-                
-                // 月情報を抽出
-                const monthInfo = this.extractMonthInfo(logText);
-                
-                allTabsData.push({
-                    tabId: tab.id,
-                    tabName: tab.name,
-                    monthInfo: monthInfo,
-                    sleepData: tabData,
-                    dailySleepTotals: this.dailySleepTotals
-                });
-                
-                this.updateTabStatus(tab.id, `${tabData.length}件の睡眠データを検出`, 'success');
-                
-            } catch (error) {
-                console.error(`タブ ${tab.name} の解析エラー:`, error);
-                this.updateTabStatus(tab.id, 'データ解析エラー', 'error');
-                errors.push(`${tab.name}: データ解析エラー`);
+            // 月ヘッダーを削除
+            logText = logText.replace(/^【ぴよログ】.*?\n-+\n*/g, '');
+            
+            // タブ間の区切りを追加（連続した空行を1つに正規化）
+            if (combinedLogText) {
+                combinedLogText += '\n\n';
             }
+            combinedLogText += logText;
+            
+            hasValidTab = true;
+            this.updateTabStatus(tab.id, '✓ データを読み込みました', 'success');
         }
         
-        // エラーがある場合は警告を表示
-        if (errors.length > 0) {
-            console.warn('一部のタブでエラーが発生しました:', errors);
+        if (!hasValidTab) {
+            throw new Error('有効なデータが入力されていません');
+        }
+        
+        try {
+            // 2. 結合したテキストを一度だけ解析
+            const combinedData = this.parseLogText(combinedLogText);
+            
+            if (combinedData.length === 0) {
+                throw new Error('睡眠データが見つかりませんでした');
+            }
+            
+            // 3. 結果を1つのタブデータとして返す
+            const tab = {
+                tabId: 0,
+                tabName: '結合データ',
+                monthInfo: null, // 結合データでは月情報は使用しない
+                sleepData: combinedData,
+                dailySleepTotals: this.dailySleepTotals
+            };
+            
+            allTabsData.push(tab);
+            
+        } catch (error) {
+            console.error('データの解析中にエラーが発生しました:', error);
+            throw new Error(`データの解析に失敗しました: ${error.message}`);
         }
         
         return allTabsData;
@@ -449,42 +454,21 @@ class PiyoLogAnalyzer {
     }
     
     mergeTabsData(allTabsData) {
-        // 月順にソート
-        allTabsData.sort((a, b) => {
-            if (!a.monthInfo || !b.monthInfo) return 0;
-            if (a.monthInfo.year !== b.monthInfo.year) {
-                return a.monthInfo.year - b.monthInfo.year;
-            }
-            return a.monthInfo.month - b.monthInfo.month;
-        });
-        
-        // 月の連続性をチェック
-        this.checkMonthContinuity(allTabsData);
-        
-        // 全ての睡眠データを統合
-        const mergedSleepData = [];
-        const mergedDailySleepTotals = new Map();
-        
-        for (const tabData of allTabsData) {
-            // 睡眠データを追加
-            mergedSleepData.push(...tabData.sleepData);
-            
-            // 日別睡眠合計を追加
-            tabData.dailySleepTotals.forEach((minutes, date) => {
-                mergedDailySleepTotals.set(date, minutes);
-            });
+        if (allTabsData.length === 0) {
+            return [];
         }
         
-        // 日付順にソート
-        mergedSleepData.sort((a, b) => new Date(a.date) - new Date(b.date));
+        // 結合済みデータを取得（parseAllTabsで1つのタブデータにまとめている）
+        const tabData = allTabsData[0];
         
-        // 統合された日別睡眠合計を保存
-        this.dailySleepTotals = mergedDailySleepTotals;
+        // 日別睡眠合計を保存
+        this.dailySleepTotals = tabData.dailySleepTotals || new Map();
         
-        // 月境界情報を保存
-        this.monthBoundaries = this.calculateMonthBoundaries(allTabsData);
+        // 月境界情報は使用しない（結合済みデータのため）
+        this.monthBoundaries = [];
         
-        return mergedSleepData;
+        // 日付順にソートして返す
+        return [...tabData.sleepData].sort((a, b) => new Date(a.date) - new Date(b.date));
     }
     
     checkMonthContinuity(allTabsData) {
